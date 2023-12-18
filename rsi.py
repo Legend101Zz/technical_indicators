@@ -18,7 +18,7 @@ def ATR(DF, n =14):
     df["H-PC"] =df["High"]-df["Adj Close"].shift(1) 
     df["L-PC"] =df["Low"]-df["Adj Close"].shift(1) 
     df["TR"]=df[["H-L","H-PC","L-PC"]].max(axis=1,skipna=False)
-    df["ATR"]=df["TR"].ewm(span=n,min_periods=n).mean()
+    df["ATR"]=df["TR"].ewm(com=n,min_periods=n).mean()
     return df["ATR"]
 
 for ticker in ohlcv_data:
