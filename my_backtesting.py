@@ -1,4 +1,5 @@
 from backtesting import Backtest, Strategy
+from backtesting.lib import crossover,plot_heatmaps,resample_apply
 # from backtesting.lib import SMA
 import talib
 import pandas as pd
@@ -29,7 +30,7 @@ class MyStrategy(Strategy):
 
 
     def init(self):
-  
+        self.data = self.data.resample('1H').last()
         self.ma1 = self.I(talib.SMA, self.data.Close, self.i_ma1)
         self.ma2 = self.I(talib.SMA, self.data.Close, self.i_ma2)
 
@@ -41,59 +42,51 @@ class MyStrategy(Strategy):
         # )
 
     
-        buyCondition = (crossover(self.ma1, self.ma2) and (self.position.size == 0)) 
-        sellCondition = (crossover(self.ma2, self.ma1) and (self.position.size > 0) and
-                        ((not self.i_lowerClose) or (self.data['Close'] < self.data['Low'].shift(1))))
+       buyCondition = crossover(self.ma1, self.ma2) and (self.position.size == 0)
+       sellCondition = crossover(self.ma2, self.ma1) and (self.position.size > 0) and (
+        (not self.i_lowerClose) or (self.data['Close'] < self.data['Low'].shift(1))
+    )
 
-        stopDistance = (
-            ((self.prevBuyPrice - self.data.Close) / self.data.Close[-1])
-            if self.position.size > 0 and self.prevBuyPrice is not None
-            else None
-        )
+       stopDistance = (
+        ((self.prevBuyPrice - self.data.Close) / self.data.Close[-1])
+        if self.position.size > 0 and self.prevBuyPrice is not None
+        else None
+    )
 
-        stopPrice = (
-            (self.prevBuyPrice - (self.prevBuyPrice * self.i_stopPercent))
-            if self.position.size > 0
-            else None
-        )
+       stopPrice = (
+        (self.prevBuyPrice - (self.prevBuyPrice * self.i_stopPercent))
+        if self.position.size > 0
+        else None
+    )
 
-        stopCondition = (
-            (self.position.size > 0) and
-            (stopDistance is not None) and
-            (np.nan_to_num(stopDistance) > self.i_stopPercent)
-        )
+       stopCondition = (
+        (self.position.size > 0)
+        and (stopDistance is not None)
+        and (np.nan_to_num(stopDistance) > self.i_stopPercent)
+    )
 
-        
-        if buyCondition:
+       if buyCondition:
+        self.buyPrice = self.data.Open[-1]
+        self.prevBuyPrice = self.buyPrice
+        self.buy()
 
-            self.buyPrice = self.data.Open[-1]
-
-  
-            self.prevBuyPrice = self.buyPrice
-
-            self.buy()
-
-        
-           
-
-      
-        if sellCondition or stopCondition:
-            self.sell()
+       if sellCondition or stopCondition:
+        self.sell()
 
 
-data = pd.read_csv('CleanData2.csv', parse_dates=True, index_col='Date')
+data = pd.read_csv('../../Downloads/CleanData2.csv', parse_dates=True, index_col='Date')
 
-data = data.iloc[1:100000]
+data = data.iloc[1:20000]
 
 bt = Backtest(data, MyStrategy, cash=10000000, commission=0.005)
-stats,heatmap = bt.optimize(
-    i_ma1 =range(170,220,5),
-    i_ma2 = range(5,25,5),
-    maximize = optim_func,
-    return_heatmap =True
-)
+# stats,heatmap = bt.optimize(
+#     i_ma1 =range(170,220,5),
+#     i_ma2 = range(5,25,5),
+#     maximize = optim_func,
+#     return_heatmap =True
+# )
 
-
+stats=bt.run()
 
 bt.plot()
 
